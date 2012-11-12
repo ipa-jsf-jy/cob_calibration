@@ -44,8 +44,7 @@
 #include <pcl/point_representation.h>
 
 #include <pcl/io/pcd_io.h>
-
-#include <pcl/search/kdtree.h>
+#include <pcl/kdtree/kdtree.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter.h>
 
@@ -55,10 +54,21 @@
 #include <pcl/registration/icp_nl.h>
 #include <pcl/registration/transforms.h>
 
+
+#include <ros/ros.h>
+
+#include "tf/transform_listener.h"
+#include "sensor_msgs/PointCloud2.h"
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
+#include "laser_geometry/laser_geometry.h"
+
+#include "pcl/ros/conversions.h"
+
 //#include <pcl/visualization/pcl_visualizer.h>
 
-using pcl::visualization::PointCloudColorHandlerGenericField;
-using pcl::visualization::PointCloudColorHandlerCustom;
+/*using pcl::visualization::PointCloudColorHandlerGenericField;*/
+//using pcl::visualization::PointCloudColorHandlerCustom;
 
 //convenient typedefs
 typedef pcl::PointXYZ PointT;
@@ -68,7 +78,7 @@ typedef pcl::PointCloud<PointNormalT> PointCloudWithNormals;
 
 // This is a tutorial so we can afford having global variables
 //our visualizer
-pcl::visualization::PCLVisualizer *p;
+//pcl::visualization::PCLVisualizer *p;
 //its left and right viewports
 int vp_1, vp_2;
 
@@ -117,45 +127,45 @@ class MyPointRepresentation : public pcl::PointRepresentation <PointNormalT>
 /** \brief Display source and target on the first viewport of the visualizer
  *
  */
-void showCloudsLeft(const PointCloud::Ptr cloud_target, const PointCloud::Ptr cloud_source)
-{
-	p->removePointCloud ("vp1_target");
-	p->removePointCloud ("vp1_source");
+/*void showCloudsLeft(const PointCloud::Ptr cloud_target, const PointCloud::Ptr cloud_source)*/
+//{
+//p->removePointCloud ("vp1_target");
+//p->removePointCloud ("vp1_source");
 
-	PointCloudColorHandlerCustom<PointT> tgt_h (cloud_target, 0, 255, 0);
-	PointCloudColorHandlerCustom<PointT> src_h (cloud_source, 255, 0, 0);
-	p->addPointCloud (cloud_target, tgt_h, "vp1_target", vp_1);
-	p->addPointCloud (cloud_source, src_h, "vp1_source", vp_1);
+//PointCloudColorHandlerCustom<PointT> tgt_h (cloud_target, 0, 255, 0);
+//PointCloudColorHandlerCustom<PointT> src_h (cloud_source, 255, 0, 0);
+//p->addPointCloud (cloud_target, tgt_h, "vp1_target", vp_1);
+//p->addPointCloud (cloud_source, src_h, "vp1_source", vp_1);
 
-	PCL_INFO ("Press q to begin the registration.\n");
-	p-> spin();
-}
+//PCL_INFO ("Press q to begin the registration.\n");
+//p-> spin();
+/*}*/
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /** \brief Display source and target on the second viewport of the visualizer
  *
  */
-void showCloudsRight(const PointCloudWithNormals::Ptr cloud_target, const PointCloudWithNormals::Ptr cloud_source)
-{
-	p->removePointCloud ("source");
-	p->removePointCloud ("target");
+//void showCloudsRight(const PointCloudWithNormals::Ptr cloud_target, const PointCloudWithNormals::Ptr cloud_source)
+/*{*/
+//p->removePointCloud ("source");
+//p->removePointCloud ("target");
 
 
-	PointCloudColorHandlerGenericField<PointNormalT> tgt_color_handler (cloud_target, "curvature");
-	if (!tgt_color_handler.isCapable ())
-		PCL_WARN ("Cannot create curvature color handler!");
+//PointCloudColorHandlerGenericField <PointNormalT> tgt_color_handler (cloud_target, "curvature");
+//if (!tgt_color_handler.isCapable ())
+//PCL_WARN ("Cannot create curvature color handler!");
 
-	PointCloudColorHandlerGenericField<PointNormalT> src_color_handler (cloud_source, "curvature");
-	if (!src_color_handler.isCapable ())
-		PCL_WARN ("Cannot create curvature color handler!");
+//PointCloudColorHandlerGenericField<PointNormalT> src_color_handler (cloud_source, "curvature");
+//if (!src_color_handler.isCapable ())
+//PCL_WARN ("Cannot create curvature color handler!");
 
 
-	p->addPointCloud (cloud_target, tgt_color_handler, "target", vp_2);
-	p->addPointCloud (cloud_source, src_color_handler, "source", vp_2);
+//p->addPointCloud (cloud_target, tgt_color_handler, "target", vp_2);
+//p->addPointCloud (cloud_source, src_color_handler, "source", vp_2);
 
-	p->spinOnce();
-}
+//p->spinOnce();
+/*}*/
 
 ////////////////////////////////////////////////////////////////////////////////
 /** \brief Load a set of PCD files that we want to register together
@@ -200,8 +210,7 @@ void pairAlign (const PointCloud::Ptr cloud_src, const PointCloud::Ptr cloud_tgt
 	PointCloudWithNormals::Ptr points_with_normals_tgt (new PointCloudWithNormals);
 
 	pcl::NormalEstimation<PointT, PointNormalT> norm_est;
-	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ> ());
-	norm_est.setSearchMethod (tree);
+	norm_est.setSearchMethod (boost::make_shared<pcl::KdTreeFLANN<PointT> > ());
 	norm_est.setKSearch (30);
 
 	norm_est.setInputCloud (src);
@@ -262,7 +271,7 @@ void pairAlign (const PointCloud::Ptr cloud_src, const PointCloud::Ptr cloud_tgt
 		prev = reg.getLastIncrementalTransformation ();
 
 		// visualize current state
-		showCloudsRight(points_with_normals_tgt, points_with_normals_src);
+		//showCloudsRight(points_with_normals_tgt, points_with_normals_src);
 	}
 
 	//
@@ -273,19 +282,19 @@ void pairAlign (const PointCloud::Ptr cloud_src, const PointCloud::Ptr cloud_tgt
 	// Transform target back in source frame
 	pcl::transformPointCloud (*cloud_tgt, *output, targetToSource);
 
-	p->removePointCloud ("source");
-	p->removePointCloud ("target");
+	//p->removePointCloud ("source");
+	//p->removePointCloud ("target");
 
-	PointCloudColorHandlerCustom<PointT> cloud_tgt_h (output, 0, 255, 0);
-	PointCloudColorHandlerCustom<PointT> cloud_src_h (cloud_src, 255, 0, 0);
-	p->addPointCloud (output, cloud_tgt_h, "target", vp_2);
-	p->addPointCloud (cloud_src, cloud_src_h, "source", vp_2);
+	//PointCloudColorHandlerCustom<PointT> cloud_tgt_h (output, 0, 255, 0);
+	//PointCloudColorHandlerCustom<PointT> cloud_src_h (cloud_src, 255, 0, 0);
+	//p->addPointCloud (output, cloud_tgt_h, "target", vp_2);
+	//p->addPointCloud (cloud_src, cloud_src_h, "source", vp_2);
 
-	PCL_INFO ("Press q to continue the registration.\n");
-	p->spin ();
+	/*PCL_INFO ("Press q to continue the registration.\n");*/
+	//p->spin ();
 
-	p->removePointCloud ("source");
-	p->removePointCloud ("target");
+	//p->removePointCloud ("source");
+	//p->removePointCloud ("target");
 
 	//add the source to the transformed target
 	*output += *cloud_src;
@@ -304,8 +313,8 @@ class LaserScanToPointCloud{
 		message_filters::Subscriber<sensor_msgs::LaserScan> laser_sub_;
 		tf::MessageFilter<sensor_msgs::LaserScan> laser_notifier_;
 		ros::Publisher scan_pub_;
-	 	pcl::PointCloud<PointT> clouds[3];
-
+		pcl::PointCloud<PointT> clouds[3];
+		pcl::PointCloud<PointT>::Ptr ptr_cloud[3];
 		LaserScanToPointCloud(ros::NodeHandle n) :
 			n_(n),
 			laser_sub_(n_, "scan_front", 10),
@@ -331,25 +340,44 @@ class LaserScanToPointCloud{
 				return;
 			}
 
-			switch (scan_in->Header.frame_id) {
-				case "/base_laser_front_link"/* variable case */:
-					pcl::fromROSMsg(&cloud,&clouds[0]);
-				break;
-				case "/base_laser_back_link":
-					pcl::fromROSMsg(&cloud,&clouds[1]);
-				break;
-				case "/base_laser_top_link":
-					pcl::fromROSMsg(&cloud,&clouds[2]);
-				break;
-				default:
+			if (strcmp("base_laser_front_link",scan_in->header.frame_id.c_str()))
+			{
+				pcl::fromROSMsg(cloud,clouds[0]);
+				//ptr_cloud[0]= *clouds[0];
 
 			}
+			else if  (strcmp("base_laser_front_link",scan_in->header.frame_id.c_str()))
+			{
+				pcl::fromROSMsg(cloud,clouds[1]);
 
-			scan_pub_.publish(cloud);
+				//ptr_cloud[1]=*clouds[1];
+			}
 
+			else if  (strcmp("base_laser_front_link",scan_in->header.frame_id.c_str()))
+			{
+				pcl::fromROSMsg(cloud,clouds[2]);
+
+
+				/*switch (scan_in->header->frame_id) {*/
+				//case "/base_laser_front_link"[> variable case <]:
+				//pcl::fromROSMsg(&cloud,&clouds[0]);
+				//break;
+				//case "/base_laser_back_link":
+				//pcl::fromROSMsg(&cloud,&clouds[1]);
+				//break;
+				//case "/base_laser_top_link":
+				//pcl::fromROSMsg(&cloud,&clouds[2]);
+				//break;
+				//default:
+
+				/*}*/
+
+				scan_pub_.publish(cloud);
+
+			}
 		}
-};
 
+};
 
 
 
@@ -361,10 +389,14 @@ int main (int argc, char** argv)
 	ros::NodeHandle n;
 	LaserScanToPointCloud lstopc(n);
 	// Load data
+	pcl::PointCloud<PointT> tmp[3];
+	//tmp=lstopc.clouds;
 	std::vector<PointCloud::Ptr>  data;
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		data.push_back(*lstopc.clouds[i]);
+		PointCloud::Ptr a;
+		a=boost::shared_ptr<PointCloud> (new PointCloud(*(lstopc.clouds[i])));
+		data.push_back(a);
 	}
 	//loadData (argc, argv, data);
 
@@ -382,14 +414,14 @@ int main (int argc, char** argv)
 
 	for (size_t i = 1; i < data.size (); ++i)
 	{
-		source = data[i-1];
-		target = data[i];
+		source = *data[i-1];
+		target = *data[i];
 
 		// Add visualization data
 		//showCloudsLeft(source, target);
 
 		PointCloud::Ptr temp (new PointCloud);
-		PCL_INFO ("Aligning %s (%d) with %s (%d).\n", data[i-1].f_name.c_str (), source->points.size (), data[i].f_name.c_str (), target->points.size ());
+		//PCL_INFO ("Aligning %s (%d) with %s (%d).\n", data[i-1].f_name.c_str (), source->points.size (), data[i].f_name.c_str (), target->points.size ());
 		pairAlign (source, target, temp, pairTransform, true);
 
 		//transform current pair into the global transform
@@ -399,10 +431,11 @@ int main (int argc, char** argv)
 		GlobalTransform = pairTransform * GlobalTransform;
 
 		//save aligned pair, transformed into the first cloud's frame
-		std::stringstream ss;
-		ss << i << ".pcd";
-		pcl::io::savePCDFile (ss.str (), *result, true);
+		//std::stringstream ss;
+		//ss << i << ".pcd";
+		//pcl::io::savePCDFile (ss.str (), *result, true);
 
 	}
 }
+
 /* ]--- */
