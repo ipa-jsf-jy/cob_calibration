@@ -15,6 +15,7 @@
 	<depend package="message_filters"/>
 	<depend package="laser_geometry"/>
 
+	<depend package="rospy"/>
 	<depend package="pcl"/>
 	<depend package="pcl_ros"/>
 
