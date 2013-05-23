@@ -83,7 +83,7 @@ def capture_loop(positions, sss, visible, capture_kinematics, capture_image):
         msg.Percent_done = round(100.0 * index / len(positions), 2)
         msg.Samples_left = len(positions) - index
         progress_pub.publish(msg)
-
+	'''
         print "--> moving arm to sample #%s" % index
         pos = positions[index]
         #joint_pos = [[((a + (np.pi)) % (2 * np.pi)) - (np.pi)
@@ -106,7 +106,7 @@ def capture_loop(positions, sss, visible, capture_kinematics, capture_image):
                          rospy.Time.now(),
                          "/chessboard_center",
                          "/sdh_palm_link")  # right upper corner
-
+	'''
         sss.move("torso", [positions[index]['torso_position']])
         sss.sleep(1)
 
@@ -163,7 +163,7 @@ def main():
     sss.recover("head")
 
     print "--> setup care-o-bot for capture"
-    sss.move("head", "back")
+    sss.move("head", "front")
 
     # get position from parameter server
     position_path = rospy.get_param('~position_path', None)
