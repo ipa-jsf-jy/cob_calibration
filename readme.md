@@ -10,6 +10,7 @@ Prepare the robot for calibration
 ---
 described [here](http://www.ros.org/wiki/cob_calibration/Tutorials/preparation)
 
+
 <!---
 1. move to calibration position
 ```roslaunch cob_calibration_executive move_arm_to_calibration_position.launch```
@@ -88,6 +89,10 @@ Running calibration
 
 Final steps
 ---
+
+set joint stiffness of arm to 1500 for tests:
+```rosservice call /arm_controller/set_joint_stiffness "{joint_stiffness: [1500, 1500, 1500, 1500, 1500, 1500, 1500]}"```
+
 
 
 1. Verify the calibration result with rviz by checking the kinect pointcloud while the arm with checkerboard is in front of the cameras. The point cloud should align with the simulated arm.
